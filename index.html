@@ -27,6 +27,7 @@
   .btn.publish{background:#0f9d58;box-shadow:0 6px 16px rgba(15,157,88,.28)}
   .btn.publish:hover{background:#0c8043}
   .btn.danger{color:var(--danger)}
+  .btn:disabled{opacity:.55;cursor:default}
   main{max-width:1080px;margin:0 auto;padding:32px 20px 70px}
   .hero{margin-bottom:22px}
   .hero h1{margin:0 0 7px;font-size:31px;letter-spacing:-1.1px}
@@ -73,19 +74,13 @@
   .toast{position:fixed;left:50%;bottom:25px;transform:translate(-50%,20px);background:#171923;color:#fff;padding:12px 16px;border-radius:12px;font-size:13px;font-weight:700;opacity:0;pointer-events:none;transition:.2s;z-index:50}
   .toast.show{opacity:1;transform:translate(-50%,0)}
 
-  .modal-backdrop{display:none;position:fixed;inset:0;background:rgba(15,18,30,.45);backdrop-filter:blur(5px);z-index:40;padding:20px;align-items:center;justify-content:center}
-  .modal-backdrop.open{display:flex}
-  .modal{position:relative;width:min(560px,100%);background:#fff;border:1px solid var(--line);border-radius:20px;box-shadow:0 24px 70px rgba(20,24,50,.2);padding:25px}
-  .modal h2{margin:0 0 7px;font-size:21px}.modal p{margin:0 0 17px;color:var(--muted);font-size:13px}
-  .modal-close{position:absolute;right:14px;top:12px;border:0;background:transparent;font-size:26px;color:#7d8190;padding:4px 9px;border-radius:9px}
-  .modal-close:hover{background:#f2f3f7}.link-row{display:flex;gap:8px}.link-row input{flex:1;min-width:0}
   .modal{position:fixed;inset:0;background:rgba(18,20,30,.45);display:none;place-items:center;padding:20px;z-index:40}
   .modal.show{display:grid}
-  .modal-card{width:min(560px,100%);background:#fff;border-radius:20px;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.18)}
+  .modal-card{position:relative;width:min(560px,100%);background:#fff;border-radius:20px;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.18)}
   .modal-card h3{margin:0 0 7px}
   .modal-card p{margin:0 0 15px;color:var(--muted);font-size:13px}
   .link-row{display:flex;gap:8px}
-  .link-row input{flex:1}
+  .link-row input{flex:1;min-width:0}
   .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
   @media(max-width:800px){
     .grid{grid-template-columns:1fr}
@@ -105,7 +100,7 @@
 <body>
 <header class="topbar">
   <div class="topbar-inner">
-    <a class="brand" href="https://semicolonxss.github.io/FormWheel/" style="text-decoration:none;color:inherit;">
+    <a class="brand" href="https://semicolonxss.github.io/Formwheel/" style="text-decoration:none;color:inherit;">
       <div class="logo">F</div>
       <span>FormWheel</span>
       <span class="badge">제작중</span>
@@ -143,7 +138,7 @@
       </div>
       <div id="questions"></div>
 
-      <div class="save-note">작성 내용은 이 브라우저의 로컬 저장소에 저장됩니다.</div>
+      <div class="save-note">작성 내용(초안)은 이 브라우저의 로컬 저장소에 저장됩니다. "설문 게시"를 누르면 서버에 저장되어 다른 기기에서도 응답할 수 있어요.</div>
     </section>
 
     <aside class="card side">
@@ -192,7 +187,11 @@
 <div class="modal" id="responsesModal" aria-hidden="true">
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="responsesTitle" style="max-width:680px;max-height:82vh;overflow:auto">
     <h3 id="responsesTitle">응답 보기</h3>
-    <p style="color:var(--muted);font-size:13px;margin:0 0 15px">이 브라우저에 제출된 응답만 표시돼요. 다른 사람의 기기·브라우저에서 제출한 응답은 서버가 없어서 여기서 볼 수 없어요.</p>
+    <p style="color:var(--muted);font-size:13px;margin:0 0 12px">설문 링크(또는 코드)를 입력하면 서버에 모인 모든 응답을 실시간으로 확인할 수 있어요. 다른 기기에서 제출한 응답도 여기서 보여요.</p>
+    <div class="link-row" style="margin-bottom:14px">
+      <input id="responsesLookup" type="text" placeholder="설문 링크 또는 코드 붙여넣기">
+      <button class="btn primary" id="lookupResponsesBtn" type="button">조회</button>
+    </div>
     <div id="responsesList"></div>
     <div class="modal-actions">
       <button class="btn" id="closeResponsesBtn" type="button">닫기</button>
@@ -201,9 +200,67 @@
 </div>
 <div class="toast" id="toast"></div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script>
 (() => {
   'use strict';
+
+  // ---------- Firebase (shared FormWheel project) ----------
+  const firebaseConfig = {
+    apiKey: "AIzaSyBreTSe1m0-xlbF4aupnU5isRZCihR25IE",
+    authDomain: "formwheel.firebaseapp.com",
+    databaseURL: "https://formwheel-default-rtdb.firebaseio.com/",
+    projectId: "formwheel",
+    storageBucket: "formwheel.firebasestorage.app",
+    messagingSenderId: "431583088241",
+    appId: "1:431583088241:web:74e0e34ea1e3e1170c55d0"
+  };
+  let db = null;
+  let fbReady = false;
+  try {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+    fbReady = true;
+  } catch (e) {
+    fbReady = false;
+  }
+
+  async function storeGet(key) {
+    if (!fbReady) return null;
+    try {
+      const snap = await db.ref('data/' + key).once('value');
+      return snap.exists() ? snap.val() : null;
+    } catch (e) {
+      return null;
+    }
+  }
+  async function storeSet(key, val) {
+    if (!fbReady) return false;
+    try {
+      await db.ref('data/' + key).set(val);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+  async function storeList(prefix) {
+    if (!fbReady) return [];
+    try {
+      const snap = await db.ref('data')
+        .orderByKey()
+        .startAt(prefix)
+        .endAt(prefix + '\uf8ff')
+        .once('value');
+      const val = snap.val() || {};
+      return Object.keys(val);
+    } catch (e) {
+      return [];
+    }
+  }
+  function uid(len) {
+    return Math.random().toString(36).slice(2, 2 + len);
+  }
 
   const $ = (selector) => document.querySelector(selector);
   const questionsEl = $('#questions');
@@ -216,6 +273,7 @@
   const linkDescEl = $('#linkDesc');
   const responsesModal = $('#responsesModal');
   const responsesListEl = $('#responsesList');
+  const responsesLookupEl = $('#responsesLookup');
   const WHEEL_BASE_URL = 'https://semicolonxss.github.io/Formwheel_Wheel/';
   const FORM_BASE_URL = 'https://semicolonxss.github.io/Formwheel_Form/';
 
@@ -519,12 +577,12 @@
 
     openShareModal(
       '공유 링크가 생성됐어요 🔗',
-      '현재 Form 설정을 기반으로 만든 데모 링크입니다. 실제 서버 배포 전까지는 이 브라우저에서만 사용할 수 있어요.',
+      '이 링크는 지금 작성 중인 내용을 이어서 편집할 수 있게 해줘요(편집용). 응답을 실제로 모으려면 "설문 게시"를 사용하세요.',
       link
     );
   }
 
-  function publishForm() {
+  async function publishForm() {
     const title = titleEl.value.trim();
     if (!title) {
       showToast('설문 제목을 입력해주세요.');
@@ -550,112 +608,148 @@
 
     save(false);
 
+    const publishBtn = $('#publishBtn');
+    const originalText = publishBtn.textContent;
+    publishBtn.disabled = true;
+    publishBtn.textContent = '게시하는 중...';
+
     const payload = getFormData();
-    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
-    const link = `${FORM_BASE_URL}#respond=${encoded}`;
+    const formId = uid(8);
+    const ok = await storeSet('frm:' + formId + ':meta', payload);
+
+    publishBtn.disabled = false;
+    publishBtn.textContent = originalText;
+
+    if (!ok) {
+      showToast('게시에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.');
+      return;
+    }
 
     try {
-      localStorage.setItem('formwheel_last_published_data', JSON.stringify(payload));
-      localStorage.setItem('formwheel_last_published_key', `formwheel_responses_${payload.updatedAt}`);
+      localStorage.setItem('formwheel_last_published_id', formId);
     } catch (_) { /* ignore storage errors */ }
+
+    const link = `${FORM_BASE_URL}#respond=${formId}`;
 
     openShareModal(
       '설문이 게시됐어요 🎉',
-      '아래 링크를 공유하면 응답자가 바로 설문에 답변할 수 있어요. (서버 없이 이 브라우저 기준으로 동작하는 데모 게시예요.)',
+      '아래 링크를 공유하면 누구나 어떤 기기에서든 바로 응답할 수 있어요. 응답은 서버에 모여서 "응답 보기"에서 실시간으로 확인할 수 있어요.',
       link
     );
   }
 
-  function showResponses() {
-    let formSnapshot = null;
-    let responsesKey = null;
+  function extractFormId(value) {
+    if (!value) return '';
+    const idx = value.indexOf('#respond=');
+    if (idx !== -1) return value.slice(idx + 9).trim();
+    return value.trim();
+  }
 
-    try {
-      const rawData = localStorage.getItem('formwheel_last_published_data');
-      formSnapshot = rawData ? JSON.parse(rawData) : null;
-      responsesKey = localStorage.getItem('formwheel_last_published_key');
-    } catch (_) { /* ignore */ }
+  function showEmptyResponses(strongText, spanText) {
+    responsesListEl.replaceChildren();
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    const strong = document.createElement('strong');
+    strong.textContent = strongText;
+    const span = document.createElement('span');
+    span.textContent = spanText;
+    empty.append(strong, span);
+    responsesListEl.appendChild(empty);
+  }
+
+  async function loadResponses(formId) {
+    if (!formId) {
+      showEmptyResponses('아직 게시된 설문이 없어요', '먼저 "설문 게시" 버튼으로 설문을 게시하거나, 위에 설문 링크를 붙여넣어 조회해보세요.');
+      return;
+    }
+
+    responsesListEl.replaceChildren();
+    const loading = document.createElement('div');
+    loading.className = 'empty';
+    loading.textContent = '불러오는 중...';
+    responsesListEl.appendChild(loading);
+
+    const formSnapshot = await storeGet('frm:' + formId + ':meta');
+    if (!formSnapshot) {
+      showEmptyResponses('설문을 찾을 수 없어요', '링크나 코드를 다시 확인해주세요.');
+      return;
+    }
+
+    const keys = await storeList('frm:' + formId + ':resp:');
+    const list = [];
+    for (const key of keys) {
+      const value = await storeGet(key);
+      if (value) list.push(value);
+    }
+    list.sort((a, b) => new Date(a.submittedAt || 0) - new Date(b.submittedAt || 0));
 
     responsesListEl.replaceChildren();
 
-    if (!formSnapshot || !responsesKey) {
-      const empty = document.createElement('div');
-      empty.className = 'empty';
-      const strong = document.createElement('strong');
-      strong.textContent = '아직 게시된 설문이 없어요';
-      const span = document.createElement('span');
-      span.textContent = '먼저 "설문 게시" 버튼으로 설문을 게시해주세요.';
-      empty.append(strong, span);
-      responsesListEl.appendChild(empty);
-    } else {
-      let list = [];
-      try {
-        const raw = localStorage.getItem(responsesKey);
-        list = raw ? JSON.parse(raw) : [];
-      } catch (_) { /* ignore */ }
-
-      if (!list.length) {
-        const empty = document.createElement('div');
-        empty.className = 'empty';
-        const strong = document.createElement('strong');
-        strong.textContent = '아직 제출된 응답이 없어요';
-        const span = document.createElement('span');
-        span.textContent = '이 브라우저에서 게시 링크를 열고 응답을 제출하면 여기에 표시돼요.';
-        empty.append(strong, span);
-        responsesListEl.appendChild(empty);
-      } else {
-        const count = document.createElement('div');
-        count.style.fontWeight = '800';
-        count.style.marginBottom = '10px';
-        count.textContent = `총 ${list.length}개의 응답 — "${formSnapshot.title || '제목 없는 Form'}"`;
-        responsesListEl.appendChild(count);
-
-        list.forEach((response, rIndex) => {
-          const box = document.createElement('div');
-          box.className = 'question';
-
-          const head = document.createElement('div');
-          head.style.fontWeight = '800';
-          head.style.marginBottom = '10px';
-          head.style.color = 'var(--muted)';
-          head.style.fontSize = '12px';
-          const when = response.submittedAt ? new Date(response.submittedAt).toLocaleString('ko-KR') : '';
-          head.textContent = `응답 #${rIndex + 1}${when ? ' · ' + when : ''}`;
-          box.appendChild(head);
-
-          (formSnapshot.questions || []).forEach((q, qIndex) => {
-            const qBox = document.createElement('div');
-            qBox.className = 'preview-q';
-
-            const label = document.createElement('b');
-            label.textContent = `${qIndex + 1}. ${q.text || '질문'}`;
-            qBox.appendChild(label);
-
-            const answerVal = response.answers ? response.answers[qIndex] : undefined;
-            const answerText = document.createElement('div');
-            answerText.style.color = '#444957';
-            answerText.style.fontSize = '14px';
-            answerText.style.marginTop = '6px';
-
-            if (Array.isArray(answerVal)) {
-              answerText.textContent = answerVal.length ? answerVal.join(', ') : '(응답 없음)';
-            } else if (answerVal) {
-              answerText.textContent = answerVal;
-            } else {
-              answerText.textContent = '(응답 없음)';
-            }
-
-            qBox.appendChild(answerText);
-            box.appendChild(qBox);
-          });
-
-          responsesListEl.appendChild(box);
-        });
-      }
+    if (!list.length) {
+      showEmptyResponses('아직 제출된 응답이 없어요', '설문 링크를 공유하고 응답을 받아보세요.');
+      return;
     }
+
+    const count = document.createElement('div');
+    count.style.fontWeight = '800';
+    count.style.marginBottom = '10px';
+    count.textContent = `총 ${list.length}개의 응답 — "${formSnapshot.title || '제목 없는 Form'}"`;
+    responsesListEl.appendChild(count);
+
+    list.forEach((response, rIndex) => {
+      const box = document.createElement('div');
+      box.className = 'question';
+
+      const head = document.createElement('div');
+      head.style.fontWeight = '800';
+      head.style.marginBottom = '10px';
+      head.style.color = 'var(--muted)';
+      head.style.fontSize = '12px';
+      const when = response.submittedAt ? new Date(response.submittedAt).toLocaleString('ko-KR') : '';
+      head.textContent = `응답 #${rIndex + 1}${when ? ' · ' + when : ''}`;
+      box.appendChild(head);
+
+      (formSnapshot.questions || []).forEach((q, qIndex) => {
+        const qBox = document.createElement('div');
+        qBox.className = 'preview-q';
+
+        const label = document.createElement('b');
+        label.textContent = `${qIndex + 1}. ${q.text || '질문'}`;
+        qBox.appendChild(label);
+
+        const answerVal = response.answers ? response.answers[qIndex] : undefined;
+        const answerText = document.createElement('div');
+        answerText.style.color = '#444957';
+        answerText.style.fontSize = '14px';
+        answerText.style.marginTop = '6px';
+
+        if (Array.isArray(answerVal)) {
+          answerText.textContent = answerVal.length ? answerVal.join(', ') : '(응답 없음)';
+        } else if (answerVal) {
+          answerText.textContent = answerVal;
+        } else {
+          answerText.textContent = '(응답 없음)';
+        }
+
+        qBox.appendChild(answerText);
+        box.appendChild(qBox);
+      });
+
+      responsesListEl.appendChild(box);
+    });
+  }
+
+  function showResponses() {
+    let lastId = '';
+    try {
+      lastId = localStorage.getItem('formwheel_last_published_id') || '';
+    } catch (_) { /* ignore */ }
+
+    responsesLookupEl.value = lastId ? (FORM_BASE_URL + '#respond=' + lastId) : '';
 
     responsesModal.classList.add('show');
     responsesModal.setAttribute('aria-hidden', 'false');
+    loadResponses(lastId);
   }
 
   function closeResponsesModal() {
@@ -728,13 +822,7 @@
     linkModal.setAttribute('aria-hidden', 'true');
   }
 
-  function renderRespondPage(data) {
-    document.querySelector('body > header.topbar').style.display = 'none';
-    document.querySelector('body > main').style.display = 'none';
-
-    const respondPage = $('#respondPage');
-    respondPage.style.display = 'block';
-
+  function renderRespondPage(data, formId) {
     const card = $('#respondCard');
     const answers = {};
 
@@ -751,6 +839,10 @@
       desc.textContent = data.description || '';
 
       card.append(title, desc);
+
+      if (!formId) {
+        return;
+      }
 
       (data.questions || []).forEach((q, idx) => {
         const qBox = document.createElement('div');
@@ -806,14 +898,21 @@
       submitBtn.style.marginTop = '18px';
       submitBtn.style.width = '100%';
       submitBtn.textContent = '제출';
-      submitBtn.addEventListener('click', () => {
-        try {
-          const key = `formwheel_responses_${data.updatedAt || 'default'}`;
-          const raw = localStorage.getItem(key);
-          const list = raw ? JSON.parse(raw) : [];
-          list.push({ answers, submittedAt: new Date().toISOString() });
-          localStorage.setItem(key, JSON.stringify(list));
-        } catch (_) { /* ignore storage errors */ }
+      submitBtn.addEventListener('click', async () => {
+        submitBtn.disabled = true;
+        submitBtn.textContent = '제출 중...';
+
+        const ok = await storeSet('frm:' + formId + ':resp:' + uid(10), {
+          answers,
+          submittedAt: new Date().toISOString()
+        });
+
+        if (!ok) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = '제출';
+          showToast('제출에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.');
+          return;
+        }
 
         card.replaceChildren();
         const thanks = document.createElement('div');
@@ -821,7 +920,7 @@
         thanks.textContent = '응답이 제출됐어요 🎉';
         const note = document.createElement('div');
         note.className = 'preview-desc';
-        note.textContent = '소중한 의견 감사합니다. (이 데모는 응답을 이 브라우저에만 저장해요.)';
+        note.textContent = '소중한 의견 감사합니다.';
         card.append(thanks, note);
       });
 
@@ -829,6 +928,34 @@
     }
 
     renderForm();
+  }
+
+  async function loadRespondFromFirebase(formId) {
+    document.querySelector('body > header.topbar').style.display = 'none';
+    document.querySelector('body > main').style.display = 'none';
+
+    const respondPage = $('#respondPage');
+    respondPage.style.display = 'block';
+
+    const card = $('#respondCard');
+    card.replaceChildren();
+    const loading = document.createElement('div');
+    loading.className = 'preview-desc';
+    loading.textContent = '설문을 불러오는 중...';
+    card.appendChild(loading);
+
+    if (!formId) {
+      renderRespondPage({ title: '설문을 찾을 수 없어요', description: '링크가 올바르지 않아요.', questions: [] }, null);
+      return;
+    }
+
+    const data = await storeGet('frm:' + formId + ':meta');
+    if (!data) {
+      renderRespondPage({ title: '설문을 찾을 수 없어요', description: '링크가 잘못되었거나 설문이 삭제되었을 수 있어요.', questions: [] }, null);
+      return;
+    }
+
+    renderRespondPage(data, formId);
   }
 
   function loadFromLink() {
@@ -891,6 +1018,14 @@
   $('#linkBtn').addEventListener('click', generateLink);
   $('#publishBtn').addEventListener('click', publishForm);
   $('#responsesBtn').addEventListener('click', showResponses);
+  $('#lookupResponsesBtn').addEventListener('click', () => {
+    const id = extractFormId(responsesLookupEl.value.trim());
+    if (!id) {
+      showToast('설문 링크 또는 코드를 입력해주세요.');
+      return;
+    }
+    loadResponses(id);
+  });
   $('#copyLinkBtn').addEventListener('click', copyLink);
   $('#closeLinkBtn').addEventListener('click', closeModal);
   $('#closeResponsesBtn').addEventListener('click', closeResponsesModal);
@@ -918,13 +1053,8 @@
   });
 
   if (window.location.hash.startsWith('#respond=')) {
-    try {
-      const encoded = window.location.hash.slice(9);
-      const data = JSON.parse(decodeURIComponent(escape(atob(encoded))));
-      renderRespondPage(data && typeof data === 'object' ? data : {});
-    } catch (_) {
-      renderRespondPage({ title: '설문을 불러올 수 없어요', description: '', questions: [] });
-    }
+    const formId = window.location.hash.slice(9).trim();
+    loadRespondFromFirebase(formId);
   } else {
     load();
     loadFromLink();
