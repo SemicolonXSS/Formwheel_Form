@@ -103,7 +103,7 @@
 <body>
 <header class="topbar">
   <div class="topbar-inner">
-    <a class="brand" href="https://semicolonxss.github.io/Formwheel/" style="text-decoration:none;color:inherit;">
+    <a class="brand" href="https://semicolonxss.github.io/FormWheel/" style="text-decoration:none;color:inherit;">
       <div class="logo">F</div>
       <span>FormWheel</span>
       <span class="badge">제작중</span>
@@ -157,22 +157,10 @@
   </div>
 </main>
 
-<div class="modal-backdrop" id="linkModal" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="linkTitle">
-    <button class="modal-close" id="closeModal" type="button" aria-label="닫기">×</button>
-    <h2 id="linkTitle">Form 링크 생성</h2>
-    <p>아래 링크를 복사해서 공유하세요.</p>
-    <div class="link-row">
-      <input id="generatedLink" type="text" readonly>
-      <button class="btn primary" id="copyLink" type="button">복사</button>
-    </div>
-    <div class="save-note">현재 버전은 브라우저에서 생성되는 로컬 링크예요. 실제 여러 기기에서 공유하려면 서버/DB 연결이 필요합니다.</div>
-  </div>
-</div>
 <div class="modal" id="linkModal" aria-hidden="true">
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="linkTitle">
     <h3 id="linkTitle">공유 링크가 생성됐어요 🔗</h3>
-    <p>현재 Form 설정을 기반으로 만든 데모 링크입니다. 실제 서버 배포 전까지는 이 브라우저에서만 사용할 수 있어요.</p>
+    <p id="linkDesc">현재 Form 설정을 기반으로 만든 데모 링크입니다. 실제 서버 배포 전까지는 이 브라우저에서만 사용할 수 있어요.</p>
     <div class="link-row">
       <input id="generatedLink" type="text" readonly>
       <button class="btn primary" id="copyLinkBtn" type="button">복사</button>
@@ -195,6 +183,9 @@
   const toastEl = $('#toast');
   const linkModal = $('#linkModal');
   const generatedLinkEl = $('#generatedLink');
+  const linkTitleEl = $('#linkTitle');
+  const linkDescEl = $('#linkDesc');
+  const WHEEL_BASE_URL = 'https://semicolonxss.github.io/Formwheel_Wheel/';
 
   let questions = [
     { text: '', type: 'choice', choices: ['선택지 1', '선택지 2'] }
@@ -266,7 +257,11 @@
         updatePreview();
       });
 
-      actions.append(up, down, del);
+      const wheel = makeButton('🎡 돌림판 생성', 'btn');
+      wheel.title = '이 질문으로 돌림판 만들기';
+      wheel.addEventListener('click', () => generateWheelLink(index));
+
+      actions.append(up, down, wheel, del);
       head.append(drag, num, actions);
 
       const typeRow = document.createElement('div');
@@ -470,6 +465,16 @@
     }
   }
 
+  function openShareModal(title, desc, link) {
+    linkTitleEl.textContent = title;
+    linkDescEl.textContent = desc;
+    generatedLinkEl.value = link;
+    linkModal.classList.add('show');
+    linkModal.setAttribute('aria-hidden', 'false');
+    generatedLinkEl.focus();
+    generatedLinkEl.select();
+  }
+
   function generateLink() {
     save(false);
 
@@ -478,11 +483,40 @@
     const base = window.location.href.split('#')[0];
     const link = `${base}#form=${encoded}`;
 
-    generatedLinkEl.value = link;
-    linkModal.classList.add('show');
-    linkModal.setAttribute('aria-hidden', 'false');
-    generatedLinkEl.focus();
-    generatedLinkEl.select();
+    openShareModal(
+      '공유 링크가 생성됐어요 🔗',
+      '현재 Form 설정을 기반으로 만든 데모 링크입니다. 실제 서버 배포 전까지는 이 브라우저에서만 사용할 수 있어요.',
+      link
+    );
+  }
+
+  function generateWheelLink(index) {
+    const q = questions[index];
+    if (!q) return;
+
+    if (q.type === 'text') {
+      showToast('주관식 질문은 돌림판을 만들 수 없어요.');
+      return;
+    }
+
+    const choices = (q.choices || []).map(c => String(c || '').trim()).filter(Boolean);
+    if (choices.length < 2) {
+      showToast('돌림판을 만들려면 선택지가 2개 이상 필요해요.');
+      return;
+    }
+
+    const payload = {
+      title: q.text.trim() || `질문 ${index + 1}`,
+      choices
+    };
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+    const link = `${WHEEL_BASE_URL}#wheel=${encoded}`;
+
+    openShareModal(
+      '돌림판 링크가 생성됐어요 🎡',
+      `"${payload.title}" 질문의 선택지로 만든 돌림판 링크예요. 아래 링크를 복사해서 공유하세요.`,
+      link
+    );
   }
 
   async function copyLink() {
