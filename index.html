@@ -421,7 +421,8 @@
       questions: questions.map(q => ({
         text: String(q.text || ''),
         type: q.type === 'text' ? 'text' : (q.type === 'checkbox' ? 'checkbox' : 'choice'),
-        choices: Array.isArray(q.choices) ? q.choices.map(v => String(v || '')) : []
+        choices: Array.isArray(q.choices) ? q.choices.map(v => String(v || '')) : [],
+        wheelAnswers: Array.isArray(q.wheelAnswers) ? q.wheelAnswers.map(v => String(v || '')) : []
       })),
       updatedAt: new Date().toISOString()
     };
@@ -453,7 +454,8 @@
         questions = data.questions.map(q => ({
           text: typeof q.text === 'string' ? q.text : '',
           type: q.type === 'text' ? 'text' : (q.type === 'checkbox' ? 'checkbox' : 'choice'),
-          choices: Array.isArray(q.choices) ? q.choices.map(v => String(v || '')) : []
+          choices: Array.isArray(q.choices) ? q.choices.map(v => String(v || '')) : [],
+          wheelAnswers: Array.isArray(q.wheelAnswers) ? q.wheelAnswers.map(v => String(v || '')) : []
         }));
 
         if (!questions.length) {
@@ -494,15 +496,33 @@
     const q = questions[index];
     if (!q) return;
 
-    if (q.type === 'text') {
-      showToast('주관식 질문은 돌림판을 만들 수 없어요.');
-      return;
-    }
+    let choices;
 
-    const choices = (q.choices || []).map(c => String(c || '').trim()).filter(Boolean);
-    if (choices.length < 2) {
-      showToast('돌림판을 만들려면 선택지가 2개 이상 필요해요.');
-      return;
+    if (q.type === 'text') {
+      const existing = Array.isArray(q.wheelAnswers) ? q.wheelAnswers.join('\n') : '';
+      const input = window.prompt(
+        '이 질문에 대해 나올 수 있는 답변들을 한 줄에 하나씩 입력하세요.\n(쉼표로 구분해도 됩니다)',
+        existing
+      );
+      if (input === null) return;
+
+      choices = input
+        .split(/\r?\n|,/)
+        .map(c => c.trim())
+        .filter(Boolean);
+
+      if (choices.length < 2) {
+        showToast('돌림판을 만들려면 답변이 2개 이상 필요해요.');
+        return;
+      }
+
+      q.wheelAnswers = choices;
+    } else {
+      choices = (q.choices || []).map(c => String(c || '').trim()).filter(Boolean);
+      if (choices.length < 2) {
+        showToast('돌림판을 만들려면 선택지가 2개 이상 필요해요.');
+        return;
+      }
     }
 
     const payload = {
@@ -514,7 +534,7 @@
 
     openShareModal(
       '돌림판 링크가 생성됐어요 🎡',
-      `"${payload.title}" 질문의 선택지로 만든 돌림판 링크예요. 아래 링크를 복사해서 공유하세요.`,
+      `"${payload.title}" 질문의 답변으로 만든 돌림판 링크예요. 아래 링크를 복사해서 공유하세요.`,
       link
     );
   }
@@ -554,7 +574,8 @@
         questions = data.questions.map(q => ({
           text: String(q.text || ''),
           type: q.type === 'text' ? 'text' : (q.type === 'checkbox' ? 'checkbox' : 'choice'),
-          choices: Array.isArray(q.choices) ? q.choices.map(v => String(v || '')) : []
+          choices: Array.isArray(q.choices) ? q.choices.map(v => String(v || '')) : [],
+          wheelAnswers: Array.isArray(q.wheelAnswers) ? q.wheelAnswers.map(v => String(v || '')) : []
         }));
       }
 
