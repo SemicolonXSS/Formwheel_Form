@@ -115,6 +115,7 @@
       <button class="btn" id="saveBtn" type="button">저장</button>
       <button class="btn primary" id="linkBtn" type="button">링크 생성</button>
       <button class="btn primary publish" id="publishBtn" type="button">설문 게시</button>
+      <button class="btn" id="responsesBtn" type="button">응답 보기</button>
     </div>
   </div>
 </header>
@@ -188,6 +189,16 @@
     </div>
   </div>
 </div>
+<div class="modal" id="responsesModal" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="responsesTitle" style="max-width:680px;max-height:82vh;overflow:auto">
+    <h3 id="responsesTitle">응답 보기</h3>
+    <p style="color:var(--muted);font-size:13px;margin:0 0 15px">이 브라우저에 제출된 응답만 표시돼요. 다른 사람의 기기·브라우저에서 제출한 응답은 서버가 없어서 여기서 볼 수 없어요.</p>
+    <div id="responsesList"></div>
+    <div class="modal-actions">
+      <button class="btn" id="closeResponsesBtn" type="button">닫기</button>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -203,6 +214,8 @@
   const generatedLinkEl = $('#generatedLink');
   const linkTitleEl = $('#linkTitle');
   const linkDescEl = $('#linkDesc');
+  const responsesModal = $('#responsesModal');
+  const responsesListEl = $('#responsesList');
   const WHEEL_BASE_URL = 'https://semicolonxss.github.io/Formwheel_Wheel/';
   const FORM_BASE_URL = 'https://semicolonxss.github.io/Formwheel_Form/';
 
@@ -541,11 +554,113 @@
     const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
     const link = `${FORM_BASE_URL}#respond=${encoded}`;
 
+    try {
+      localStorage.setItem('formwheel_last_published_data', JSON.stringify(payload));
+      localStorage.setItem('formwheel_last_published_key', `formwheel_responses_${payload.updatedAt}`);
+    } catch (_) { /* ignore storage errors */ }
+
     openShareModal(
       '설문이 게시됐어요 🎉',
       '아래 링크를 공유하면 응답자가 바로 설문에 답변할 수 있어요. (서버 없이 이 브라우저 기준으로 동작하는 데모 게시예요.)',
       link
     );
+  }
+
+  function showResponses() {
+    let formSnapshot = null;
+    let responsesKey = null;
+
+    try {
+      const rawData = localStorage.getItem('formwheel_last_published_data');
+      formSnapshot = rawData ? JSON.parse(rawData) : null;
+      responsesKey = localStorage.getItem('formwheel_last_published_key');
+    } catch (_) { /* ignore */ }
+
+    responsesListEl.replaceChildren();
+
+    if (!formSnapshot || !responsesKey) {
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      const strong = document.createElement('strong');
+      strong.textContent = '아직 게시된 설문이 없어요';
+      const span = document.createElement('span');
+      span.textContent = '먼저 "설문 게시" 버튼으로 설문을 게시해주세요.';
+      empty.append(strong, span);
+      responsesListEl.appendChild(empty);
+    } else {
+      let list = [];
+      try {
+        const raw = localStorage.getItem(responsesKey);
+        list = raw ? JSON.parse(raw) : [];
+      } catch (_) { /* ignore */ }
+
+      if (!list.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        const strong = document.createElement('strong');
+        strong.textContent = '아직 제출된 응답이 없어요';
+        const span = document.createElement('span');
+        span.textContent = '이 브라우저에서 게시 링크를 열고 응답을 제출하면 여기에 표시돼요.';
+        empty.append(strong, span);
+        responsesListEl.appendChild(empty);
+      } else {
+        const count = document.createElement('div');
+        count.style.fontWeight = '800';
+        count.style.marginBottom = '10px';
+        count.textContent = `총 ${list.length}개의 응답 — "${formSnapshot.title || '제목 없는 Form'}"`;
+        responsesListEl.appendChild(count);
+
+        list.forEach((response, rIndex) => {
+          const box = document.createElement('div');
+          box.className = 'question';
+
+          const head = document.createElement('div');
+          head.style.fontWeight = '800';
+          head.style.marginBottom = '10px';
+          head.style.color = 'var(--muted)';
+          head.style.fontSize = '12px';
+          const when = response.submittedAt ? new Date(response.submittedAt).toLocaleString('ko-KR') : '';
+          head.textContent = `응답 #${rIndex + 1}${when ? ' · ' + when : ''}`;
+          box.appendChild(head);
+
+          (formSnapshot.questions || []).forEach((q, qIndex) => {
+            const qBox = document.createElement('div');
+            qBox.className = 'preview-q';
+
+            const label = document.createElement('b');
+            label.textContent = `${qIndex + 1}. ${q.text || '질문'}`;
+            qBox.appendChild(label);
+
+            const answerVal = response.answers ? response.answers[qIndex] : undefined;
+            const answerText = document.createElement('div');
+            answerText.style.color = '#444957';
+            answerText.style.fontSize = '14px';
+            answerText.style.marginTop = '6px';
+
+            if (Array.isArray(answerVal)) {
+              answerText.textContent = answerVal.length ? answerVal.join(', ') : '(응답 없음)';
+            } else if (answerVal) {
+              answerText.textContent = answerVal;
+            } else {
+              answerText.textContent = '(응답 없음)';
+            }
+
+            qBox.appendChild(answerText);
+            box.appendChild(qBox);
+          });
+
+          responsesListEl.appendChild(box);
+        });
+      }
+    }
+
+    responsesModal.classList.add('show');
+    responsesModal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeResponsesModal() {
+    responsesModal.classList.remove('show');
+    responsesModal.setAttribute('aria-hidden', 'true');
   }
 
   function generateWheelLink(index) {
@@ -775,15 +890,24 @@
 
   $('#linkBtn').addEventListener('click', generateLink);
   $('#publishBtn').addEventListener('click', publishForm);
+  $('#responsesBtn').addEventListener('click', showResponses);
   $('#copyLinkBtn').addEventListener('click', copyLink);
   $('#closeLinkBtn').addEventListener('click', closeModal);
+  $('#closeResponsesBtn').addEventListener('click', closeResponsesModal);
 
   linkModal.addEventListener('click', (event) => {
     if (event.target === linkModal) closeModal();
   });
 
+  responsesModal.addEventListener('click', (event) => {
+    if (event.target === responsesModal) closeResponsesModal();
+  });
+
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') closeModal();
+    if (event.key === 'Escape') {
+      closeModal();
+      closeResponsesModal();
+    }
   });
 
   titleEl.addEventListener('input', updatePreview);
