@@ -100,7 +100,7 @@
 <body>
 <header class="topbar">
   <div class="topbar-inner">
-    <a class="brand" href="https://semicolonxss.github.io/Formwheel/" style="text-decoration:none;color:inherit;">
+    <a class="brand" href="https://semicolonxss.github.io/FormWheel/" style="text-decoration:none;color:inherit;">
       <div class="logo">F</div>
       <span>FormWheel</span>
       <span class="badge">제작중</span>
@@ -275,7 +275,14 @@
   const responsesListEl = $('#responsesList');
   const responsesLookupEl = $('#responsesLookup');
   const WHEEL_BASE_URL = 'https://semicolonxss.github.io/Formwheel_Wheel/';
-  const FORM_BASE_URL = 'https://semicolonxss.github.io/Formwheel_Form/';
+  // Links are built from wherever this page is actually running (local file,
+  // staging, or the real production domain) instead of a hardcoded URL, so a
+  // generated link always points at code that matches it — no more mismatch
+  // between "the link format the publish button just made" and "whatever
+  // version of this file happens to be deployed at a fixed URL".
+  function getBaseUrl() {
+    return window.location.href.split('#')[0];
+  }
 
   let questions = [
     { text: '', type: 'choice', choices: ['선택지 1', '선택지 2'] }
@@ -573,7 +580,7 @@
 
     const payload = getFormData();
     const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
-    const link = `${FORM_BASE_URL}#form=${encoded}`;
+    const link = `${getBaseUrl()}#form=${encoded}`;
 
     openShareModal(
       '공유 링크가 생성됐어요 🔗',
@@ -629,7 +636,7 @@
       localStorage.setItem('formwheel_last_published_id', formId);
     } catch (_) { /* ignore storage errors */ }
 
-    const link = `${FORM_BASE_URL}#respond=${formId}`;
+    const link = `${getBaseUrl()}#respond=${formId}`;
 
     openShareModal(
       '설문이 게시됐어요 🎉',
@@ -745,7 +752,7 @@
       lastId = localStorage.getItem('formwheel_last_published_id') || '';
     } catch (_) { /* ignore */ }
 
-    responsesLookupEl.value = lastId ? (FORM_BASE_URL + '#respond=' + lastId) : '';
+    responsesLookupEl.value = lastId ? (getBaseUrl() + '#respond=' + lastId) : '';
 
     responsesModal.classList.add('show');
     responsesModal.setAttribute('aria-hidden', 'false');
