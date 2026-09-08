@@ -24,6 +24,8 @@
   .btn{border:1px solid var(--line);background:#fff;color:var(--text);padding:10px 14px;border-radius:12px;font-weight:700}
   .btn:hover{background:#f7f7fb}
   .btn.primary{border-color:transparent;background:var(--accent);color:#fff}
+  .btn.publish{background:#0f9d58;box-shadow:0 6px 16px rgba(15,157,88,.28)}
+  .btn.publish:hover{background:#0c8043}
   .btn.danger{color:var(--danger)}
   main{max-width:1080px;margin:0 auto;padding:32px 20px 70px}
   .hero{margin-bottom:22px}
@@ -93,7 +95,7 @@
   @media(max-width:520px){
     .topbar-inner{padding:11px 14px}
     .brand span:not(.badge){font-size:17px}
-    .actions .btn:not(.primary){display:none}
+    .actions .btn:not(.publish){display:none}
     main{padding:24px 13px 55px}
     .card{padding:16px;border-radius:17px}
     .type-row{grid-template-columns:1fr}
@@ -112,6 +114,7 @@
       <button class="btn" id="previewBtn" type="button">미리보기</button>
       <button class="btn" id="saveBtn" type="button">저장</button>
       <button class="btn primary" id="linkBtn" type="button">링크 생성</button>
+      <button class="btn primary publish" id="publishBtn" type="button">설문 게시</button>
     </div>
   </div>
 </header>
@@ -157,6 +160,20 @@
   </div>
 </main>
 
+<div id="respondPage" style="display:none">
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="logo">F</div>
+        <span>FormWheel</span>
+      </div>
+    </div>
+  </header>
+  <main>
+    <div class="card" id="respondCard" style="max-width:640px;margin:0 auto"></div>
+  </main>
+</div>
+
 <div class="modal" id="linkModal" aria-hidden="true">
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="linkTitle">
     <h3 id="linkTitle">공유 링크가 생성됐어요 🔗</h3>
@@ -186,6 +203,7 @@
   const linkTitleEl = $('#linkTitle');
   const linkDescEl = $('#linkDesc');
   const WHEEL_BASE_URL = 'https://semicolonxss.github.io/Formwheel_Wheel/';
+  const FORM_BASE_URL = 'https://semicolonxss.github.io/Formwheel_Form/';
 
   let questions = [
     { text: '', type: 'choice', choices: ['선택지 1', '선택지 2'] }
@@ -482,12 +500,48 @@
 
     const payload = getFormData();
     const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
-    const base = window.location.href.split('#')[0];
-    const link = `${base}#form=${encoded}`;
+    const link = `${FORM_BASE_URL}#form=${encoded}`;
 
     openShareModal(
       '공유 링크가 생성됐어요 🔗',
       '현재 Form 설정을 기반으로 만든 데모 링크입니다. 실제 서버 배포 전까지는 이 브라우저에서만 사용할 수 있어요.',
+      link
+    );
+  }
+
+  function publishForm() {
+    const title = titleEl.value.trim();
+    if (!title) {
+      showToast('설문 제목을 입력해주세요.');
+      titleEl.focus();
+      return;
+    }
+
+    const validQuestions = questions.filter(q => q.text.trim());
+    if (!validQuestions.length) {
+      showToast('질문을 1개 이상 입력해주세요.');
+      return;
+    }
+
+    for (const q of validQuestions) {
+      if (q.type !== 'text') {
+        const filled = (q.choices || []).map(c => c.trim()).filter(Boolean);
+        if (filled.length < 2) {
+          showToast('모든 객관식/체크박스 질문에는 선택지가 2개 이상 필요해요.');
+          return;
+        }
+      }
+    }
+
+    save(false);
+
+    const payload = getFormData();
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+    const link = `${FORM_BASE_URL}#respond=${encoded}`;
+
+    openShareModal(
+      '설문이 게시됐어요 🎉',
+      '아래 링크를 공유하면 응답자가 바로 설문에 답변할 수 있어요. (서버 없이 이 브라우저 기준으로 동작하는 데모 게시예요.)',
       link
     );
   }
@@ -557,6 +611,109 @@
     linkModal.setAttribute('aria-hidden', 'true');
   }
 
+  function renderRespondPage(data) {
+    document.querySelector('body > header.topbar').style.display = 'none';
+    document.querySelector('body > main').style.display = 'none';
+
+    const respondPage = $('#respondPage');
+    respondPage.style.display = 'block';
+
+    const card = $('#respondCard');
+    const answers = {};
+
+    function renderForm() {
+      card.replaceChildren();
+
+      const title = document.createElement('div');
+      title.className = 'preview-title';
+      title.style.fontSize = '26px';
+      title.textContent = data.title || '제목 없는 Form';
+
+      const desc = document.createElement('div');
+      desc.className = 'preview-desc';
+      desc.textContent = data.description || '';
+
+      card.append(title, desc);
+
+      (data.questions || []).forEach((q, idx) => {
+        const qBox = document.createElement('div');
+        qBox.className = 'preview-q';
+
+        const label = document.createElement('b');
+        label.textContent = `${idx + 1}. ${q.text || '질문'}`;
+        qBox.appendChild(label);
+
+        if (q.type === 'text') {
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.placeholder = '답변을 입력하세요';
+          input.style.width = '100%';
+          input.addEventListener('input', (e) => { answers[idx] = e.target.value; });
+          qBox.appendChild(input);
+        } else {
+          const name = `respond-q${idx}`;
+          (q.choices || []).forEach((choice) => {
+            const optRow = document.createElement('label');
+            optRow.className = 'preview-option';
+            optRow.style.cursor = 'pointer';
+
+            const input = document.createElement('input');
+            input.type = q.type === 'checkbox' ? 'checkbox' : 'radio';
+            input.name = name;
+            input.value = choice;
+            input.addEventListener('change', () => {
+              if (q.type === 'checkbox') {
+                if (!Array.isArray(answers[idx])) answers[idx] = [];
+                answers[idx] = input.checked
+                  ? [...answers[idx], choice]
+                  : answers[idx].filter(v => v !== choice);
+              } else {
+                answers[idx] = choice;
+              }
+            });
+
+            const span = document.createElement('span');
+            span.textContent = choice;
+
+            optRow.append(input, span);
+            qBox.appendChild(optRow);
+          });
+        }
+
+        card.appendChild(qBox);
+      });
+
+      const submitBtn = document.createElement('button');
+      submitBtn.type = 'button';
+      submitBtn.className = 'btn publish';
+      submitBtn.style.marginTop = '18px';
+      submitBtn.style.width = '100%';
+      submitBtn.textContent = '제출';
+      submitBtn.addEventListener('click', () => {
+        try {
+          const key = `formwheel_responses_${data.updatedAt || 'default'}`;
+          const raw = localStorage.getItem(key);
+          const list = raw ? JSON.parse(raw) : [];
+          list.push({ answers, submittedAt: new Date().toISOString() });
+          localStorage.setItem(key, JSON.stringify(list));
+        } catch (_) { /* ignore storage errors */ }
+
+        card.replaceChildren();
+        const thanks = document.createElement('div');
+        thanks.className = 'preview-title';
+        thanks.textContent = '응답이 제출됐어요 🎉';
+        const note = document.createElement('div');
+        note.className = 'preview-desc';
+        note.textContent = '소중한 의견 감사합니다. (이 데모는 응답을 이 브라우저에만 저장해요.)';
+        card.append(thanks, note);
+      });
+
+      card.appendChild(submitBtn);
+    }
+
+    renderForm();
+  }
+
   function loadFromLink() {
     const hash = window.location.hash;
     if (!hash.startsWith('#form=')) return;
@@ -615,6 +772,7 @@
   });
 
   $('#linkBtn').addEventListener('click', generateLink);
+  $('#publishBtn').addEventListener('click', publishForm);
   $('#copyLinkBtn').addEventListener('click', copyLink);
   $('#closeLinkBtn').addEventListener('click', closeModal);
 
@@ -629,10 +787,20 @@
   titleEl.addEventListener('input', updatePreview);
   descEl.addEventListener('input', updatePreview);
 
-  load();
-  loadFromLink();
-  renderQuestions();
-  updatePreview();
+  if (window.location.hash.startsWith('#respond=')) {
+    try {
+      const encoded = window.location.hash.slice(9);
+      const data = JSON.parse(decodeURIComponent(escape(atob(encoded))));
+      renderRespondPage(data && typeof data === 'object' ? data : {});
+    } catch (_) {
+      renderRespondPage({ title: '설문을 불러올 수 없어요', description: '', questions: [] });
+    }
+  } else {
+    load();
+    loadFromLink();
+    renderQuestions();
+    updatePreview();
+  }
 })();
 </script>
 </body>
