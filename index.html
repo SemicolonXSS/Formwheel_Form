@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>FormWheel — 설문 제작</title>
+<style>
+  :root{
+    --bg:#f6f7fb; --card:#fff; --text:#171923; --muted:#707586;
+    --line:#e7e9ef; --accent:#5b5cf0; --accent2:#7c3aed;
+    --danger:#e5484d; --shadow:0 12px 35px rgba(26,31,56,.08);
+    --radius:20px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+  button,input,textarea,select{font:inherit}
+  button{cursor:pointer}
+  .topbar{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
+  .topbar-inner{max-width:1080px;margin:auto;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .brand{display:flex;align-items:center;gap:11px;font-weight:800;font-size:19px}
+  .logo{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:grid;place-items:center;color:#fff;font-weight:900;box-shadow:0 7px 18px rgba(91,92,240,.28)}
+  .badge{font-size:12px;padding:6px 9px;border-radius:999px;background:#fff1c7;color:#8a6200;font-weight:800}
+  .actions{display:flex;gap:8px}
+  .btn{border:1px solid var(--line);background:#fff;color:var(--text);padding:10px 14px;border-radius:12px;font-weight:700}
+  .btn:hover{background:#f7f7fb}
+  .btn.primary{border-color:transparent;background:var(--accent);color:#fff}
+  .btn.danger{color:var(--danger)}
+  main{max-width:1080px;margin:0 auto;padding:32px 20px 70px}
+  .hero{margin-bottom:22px}
+  .hero h1{margin:0 0 7px;font-size:31px;letter-spacing:-1.1px}
+  .hero p{margin:0;color:var(--muted)}
+  .grid{display:grid;grid-template-columns:1fr 330px;gap:20px;align-items:start}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:22px}
+  .field{margin-bottom:18px}
+  label{display:block;font-size:13px;font-weight:800;margin-bottom:8px}
+  input[type=text],textarea,select{width:100%;border:1px solid var(--line);background:#fbfbfd;border-radius:13px;padding:13px 14px;outline:none;transition:.15s}
+  input:focus,textarea:focus,select:focus{border-color:#a4a5ff;box-shadow:0 0 0 4px rgba(91,92,240,.09);background:#fff}
+  textarea{min-height:92px;resize:vertical}
+  .section-head{display:flex;justify-content:space-between;align-items:center;margin:4px 0 14px}
+  .section-head h2{font-size:18px;margin:0}
+  .question{border:1px solid var(--line);border-radius:17px;padding:17px;margin-bottom:13px;background:#fff}
+  .qhead{display:flex;align-items:center;gap:9px;margin-bottom:13px}
+  .drag{color:#a1a5b3;font-size:18px;user-select:none}
+  .qnum{width:28px;height:28px;border-radius:9px;background:#eef0ff;color:var(--accent);display:grid;place-items:center;font-size:12px;font-weight:900}
+  .qactions{margin-left:auto;display:flex;gap:5px}
+  .iconbtn{border:0;background:transparent;color:#858999;padding:7px;border-radius:9px}
+  .iconbtn:hover{background:#f1f2f7;color:var(--text)}
+  .row{display:flex;gap:9px;align-items:center}
+  .row input{flex:1}
+  .choices{display:grid;gap:8px;margin-top:10px}
+  .choice-row{display:flex;gap:8px;align-items:center}
+  .choice-dot{width:12px;height:12px;border:2px solid #b4b7c4;border-radius:50%;flex:0 0 auto}
+  .choice-check{width:13px;height:13px;border:2px solid #b4b7c4;border-radius:4px;flex:0 0 auto}
+  .add-choice{border:1px dashed #c9cbd5;background:#fafaff;color:var(--accent);padding:9px 11px;border-radius:10px;font-weight:700;margin-top:8px}
+  .type-row{display:grid;grid-template-columns:1fr 145px;gap:10px}
+  .empty{border:1px dashed #d5d7e0;border-radius:16px;padding:28px;text-align:center;color:var(--muted);background:#fafafd}
+  .empty strong{display:block;color:var(--text);margin-bottom:5px}
+  .side h3{margin:0 0 14px;font-size:16px}
+  .side-item{padding:13px 0;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted);line-height:1.55}
+  .side-item:last-child{border-bottom:0}
+  .preview{margin-top:20px}
+  .preview h3{margin:0 0 15px}
+  .preview-box{background:#fafafd;border:1px solid var(--line);border-radius:15px;padding:17px}
+  .preview-title{font-size:21px;font-weight:850;margin-bottom:5px}
+  .preview-desc{color:var(--muted);font-size:13px;margin-bottom:17px}
+  .preview-q{padding:13px 0;border-top:1px solid var(--line)}
+  .preview-q:first-of-type{border-top:0}
+  .preview-q b{display:block;margin-bottom:9px}
+  .preview-option{display:flex;gap:8px;align-items:center;padding:7px 0;font-size:14px;color:#444957}
+  .save-note{font-size:12px;color:var(--muted);margin-top:10px}
+  .toast{position:fixed;left:50%;bottom:25px;transform:translate(-50%,20px);background:#171923;color:#fff;padding:12px 16px;border-radius:12px;font-size:13px;font-weight:700;opacity:0;pointer-events:none;transition:.2s;z-index:50}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+
+  .modal-backdrop{display:none;position:fixed;inset:0;background:rgba(15,18,30,.45);backdrop-filter:blur(5px);z-index:40;padding:20px;align-items:center;justify-content:center}
+  .modal-backdrop.open{display:flex}
+  .modal{position:relative;width:min(560px,100%);background:#fff;border:1px solid var(--line);border-radius:20px;box-shadow:0 24px 70px rgba(20,24,50,.2);padding:25px}
+  .modal h2{margin:0 0 7px;font-size:21px}.modal p{margin:0 0 17px;color:var(--muted);font-size:13px}
+  .modal-close{position:absolute;right:14px;top:12px;border:0;background:transparent;font-size:26px;color:#7d8190;padding:4px 9px;border-radius:9px}
+  .modal-close:hover{background:#f2f3f7}.link-row{display:flex;gap:8px}.link-row input{flex:1;min-width:0}
+  .modal{position:fixed;inset:0;background:rgba(18,20,30,.45);display:none;place-items:center;padding:20px;z-index:40}
+  .modal.show{display:grid}
+  .modal-card{width:min(560px,100%);background:#fff;border-radius:20px;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.18)}
+  .modal-card h3{margin:0 0 7px}
+  .modal-card p{margin:0 0 15px;color:var(--muted);font-size:13px}
+  .link-row{display:flex;gap:8px}
+  .link-row input{flex:1}
+  .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+  @media(max-width:800px){
+    .grid{grid-template-columns:1fr}
+    .side{order:2}
+    .hero h1{font-size:27px}
+  }
+  @media(max-width:520px){
+    .topbar-inner{padding:11px 14px}
+    .brand span:not(.badge){font-size:17px}
+    .actions .btn:not(.primary){display:none}
+    main{padding:24px 13px 55px}
+    .card{padding:16px;border-radius:17px}
+    .type-row{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="https://semicolonxss.github.io/FormWheel/" style="text-decoration:none;color:inherit;">
+      <div class="logo">F</div>
+      <span>FormWheel</span>
+      <span class="badge">제작중</span>
+    </a>
+    <div class="actions">
+      <button class="btn" id="previewBtn" type="button">미리보기</button>
+      <button class="btn" id="saveBtn" type="button">저장</button>
+      <button class="btn primary" id="linkBtn" type="button">링크 생성</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <h1>새로운 Form 만들기</h1>
+    <p>간단하게 질문을 추가하고 나만의 설문을 만들어보세요.</p>
+  </section>
+
+  <div class="grid">
+    <section class="card">
+      <div class="field">
+        <label for="title">Form 제목</label>
+        <input id="title" type="text" maxlength="120" placeholder="예: 2026년 만족도 조사">
+      </div>
+      <div class="field">
+        <label for="description">설명</label>
+        <textarea id="description" maxlength="500" placeholder="응답자에게 보여줄 설명을 입력하세요."></textarea>
+      </div>
+
+      <div class="section-head">
+        <h2>질문</h2>
+        <button class="btn primary" id="addQuestion" type="button">＋ 질문 추가</button>
+      </div>
+      <div id="questions"></div>
+
+      <div class="save-note">작성 내용은 이 브라우저의 로컬 저장소에 저장됩니다.</div>
+    </section>
+
+    <aside class="card side">
+      <h3>FormWheel 안내</h3>
+      <div class="side-item"><b>객관식</b><br>하나의 선택지를 고르는 질문을 만들 수 있어요.</div>
+      <div class="side-item"><b>체크박스</b><br>여러 선택지를 동시에 선택할 수 있어요.</div>
+      <div class="side-item"><b>주관식</b><br>자유롭게 답변을 입력받을 수 있어요.</div>
+      <div class="side-item"><b>안전한 입력 처리</b><br>사용자가 입력한 내용은 HTML로 실행하지 않고 텍스트로 표시합니다.</div>
+
+      <div class="preview">
+        <h3>미리보기</h3>
+        <div class="preview-box" id="previewBox"></div>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<div class="modal-backdrop" id="linkModal" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="linkTitle">
+    <button class="modal-close" id="closeModal" type="button" aria-label="닫기">×</button>
+    <h2 id="linkTitle">Form 링크 생성</h2>
+    <p>아래 링크를 복사해서 공유하세요.</p>
+    <div class="link-row">
+      <input id="generatedLink" type="text" readonly>
+      <button class="btn primary" id="copyLink" type="button">복사</button>
+    </div>
+    <div class="save-note">현재 버전은 브라우저에서 생성되는 로컬 링크예요. 실제 여러 기기에서 공유하려면 서버/DB 연결이 필요합니다.</div>
+  </div>
+</div>
+<div class="modal" id="linkModal" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="linkTitle">
+    <h3 id="linkTitle">공유 링크가 생성됐어요 🔗</h3>
+    <p>현재 Form 설정을 기반으로 만든 데모 링크입니다. 실제 서버 배포 전까지는 이 브라우저에서만 사용할 수 있어요.</p>
+    <div class="link-row">
+      <input id="generatedLink" type="text" readonly>
+      <button class="btn primary" id="copyLinkBtn" type="button">복사</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="closeLinkBtn" type="button">닫기</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (selector) => document.querySelector(selector);
+  const questionsEl = $('#questions');
+  const titleEl = $('#title');
+  const descEl = $('#description');
+  const toastEl = $('#toast');
+  const linkModal = $('#linkModal');
+  const generatedLinkEl = $('#generatedLink');
+
+  let questions = [
+    { text: '', type: 'choice', choices: ['선택지 1', '선택지 2'] }
+  ];
+
+  function showToast(message) {
+    toastEl.textContent = message;
+    toastEl.classList.add('show');
+    clearTimeout(showToast.timer);
+    showToast.timer = setTimeout(() => toastEl.classList.remove('show'), 1800);
+  }
+
+  function makeButton(text, className = 'iconbtn') {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = className;
+    button.textContent = text;
+    return button;
+  }
+
+  function renderQuestions() {
+    questionsEl.replaceChildren();
+
+    if (questions.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      const strong = document.createElement('strong');
+      strong.textContent = '아직 질문이 없어요';
+      const span = document.createElement('span');
+      span.textContent = '“＋ 질문 추가”를 눌러 첫 질문을 만들어보세요.';
+      empty.append(strong, span);
+      questionsEl.appendChild(empty);
+      return;
+    }
+
+    questions.forEach((q, index) => {
+      const box = document.createElement('div');
+      box.className = 'question';
+
+      const head = document.createElement('div');
+      head.className = 'qhead';
+
+      const drag = document.createElement('span');
+      drag.className = 'drag';
+      drag.textContent = '⋮⋮';
+
+      const num = document.createElement('span');
+      num.className = 'qnum';
+      num.textContent = String(index + 1);
+
+      const actions = document.createElement('div');
+      actions.className = 'qactions';
+
+      const up = makeButton('↑');
+      up.title = '위로';
+      up.disabled = index === 0;
+      up.addEventListener('click', () => moveQuestion(index, -1));
+
+      const down = makeButton('↓');
+      down.title = '아래로';
+      down.disabled = index === questions.length - 1;
+      down.addEventListener('click', () => moveQuestion(index, 1));
+
+      const del = makeButton('삭제');
+      del.title = '질문 삭제';
+      del.addEventListener('click', () => {
+        questions.splice(index, 1);
+        renderQuestions();
+        updatePreview();
+      });
+
+      actions.append(up, down, del);
+      head.append(drag, num, actions);
+
+      const typeRow = document.createElement('div');
+      typeRow.className = 'type-row';
+
+      const qInput = document.createElement('input');
+      qInput.type = 'text';
+      qInput.maxLength = 300;
+      qInput.placeholder = '질문을 입력하세요';
+      qInput.value = q.text || '';
+      qInput.addEventListener('input', (event) => {
+        questions[index].text = event.target.value;
+        updatePreview();
+      });
+
+      const select = document.createElement('select');
+      [
+        ['choice', '객관식'],
+        ['checkbox', '체크박스'],
+        ['text', '주관식']
+      ].forEach(([value, label]) => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = label;
+        option.selected = q.type === value;
+        select.appendChild(option);
+      });
+
+      select.addEventListener('change', (event) => {
+        questions[index].type = event.target.value;
+        if (event.target.value === 'text') {
+          questions[index].choices = [];
+        } else if (!Array.isArray(questions[index].choices) || questions[index].choices.length === 0) {
+          questions[index].choices = ['선택지 1', '선택지 2'];
+        }
+        renderQuestions();
+        updatePreview();
+      });
+
+      typeRow.append(qInput, select);
+      box.append(head, typeRow);
+
+      if (q.type !== 'text') {
+        const choices = document.createElement('div');
+        choices.className = 'choices';
+
+        (q.choices || []).forEach((choice, cIndex) => {
+          const row = document.createElement('div');
+          row.className = 'choice-row';
+
+          const marker = document.createElement('span');
+          marker.className = q.type === 'choice' ? 'choice-dot' : 'choice-check';
+
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.maxLength = 200;
+          input.value = choice || '';
+          input.addEventListener('input', (event) => {
+            questions[index].choices[cIndex] = event.target.value;
+            updatePreview();
+          });
+
+          const remove = makeButton('×');
+          remove.title = '선택지 삭제';
+          remove.addEventListener('click', () => {
+            if (questions[index].choices.length <= 1) {
+              showToast('선택지는 최소 1개가 필요해요.');
+              return;
+            }
+            questions[index].choices.splice(cIndex, 1);
+            renderQuestions();
+            updatePreview();
+          });
+
+          row.append(marker, input, remove);
+          choices.appendChild(row);
+        });
+
+        const addChoice = document.createElement('button');
+        addChoice.type = 'button';
+        addChoice.className = 'add-choice';
+        addChoice.textContent = '＋ 선택지 추가';
+        addChoice.addEventListener('click', () => {
+          questions[index].choices.push(`선택지 ${questions[index].choices.length + 1}`);
+          renderQuestions();
+          updatePreview();
+        });
+
+        box.append(choices, addChoice);
+      }
+
+      questionsEl.appendChild(box);
+    });
+  }
+
+  function moveQuestion(index, direction) {
+    const next = index + direction;
+    if (next < 0 || next >= questions.length) return;
+
+    [questions[index], questions[next]] = [questions[next], questions[index]];
+    renderQuestions();
+    updatePreview();
+  }
+
+  function updatePreview() {
+    const box = $('#previewBox');
+    box.replaceChildren();
+
+    const title = document.createElement('div');
+    title.className = 'preview-title';
+    title.textContent = titleEl.value.trim() || '제목 없는 Form';
+
+    const desc = document.createElement('div');
+    desc.className = 'preview-desc';
+    desc.textContent = descEl.value.trim() || '설명 없음';
+
+    box.append(title, desc);
+
+    questions.forEach((q, index) => {
+      const item = document.createElement('div');
+      item.className = 'preview-q';
+
+      const question = document.createElement('b');
+      question.textContent = `${index + 1}. ${q.text.trim() || '질문을 입력해주세요.'}`;
+      item.appendChild(question);
+
+      if (q.type === 'text') {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = '답변을 입력하세요';
+        input.disabled = true;
+        item.appendChild(input);
+      } else {
+        (q.choices || []).forEach(choice => {
+          const option = document.createElement('div');
+          option.className = 'preview-option';
+
+          const marker = document.createElement('span');
+          marker.className = q.type === 'choice' ? 'choice-dot' : 'choice-check';
+
+          const text = document.createElement('span');
+          text.textContent = choice || '선택지';
+
+          option.append(marker, text);
+          item.appendChild(option);
+        });
+      }
+
+      box.appendChild(item);
+    });
+  }
+
+  function getFormData() {
+    return {
+      title: titleEl.value.trim(),
+      description: descEl.value.trim(),
+      questions: questions.map(q => ({
+        text: String(q.text || ''),
+        type: q.type === 'text' ? 'text' : (q.type === 'checkbox' ? 'checkbox' : 'choice'),
+        choices: Array.isArray(q.choices) ? q.choices.map(v => String(v || '')) : []
+      })),
+      updatedAt: new Date().toISOString()
+    };
+  }
+
+  function save(showMessage = true) {
+    try {
+      localStorage.setItem('formwheel_form', JSON.stringify(getFormData()));
+      if (showMessage) showToast('Form이 저장됐어요!');
+      return true;
+    } catch (error) {
+      showToast('저장할 수 없어요. 브라우저 저장공간을 확인해주세요.');
+      return false;
+    }
+  }
+
+  function load() {
+    try {
+      const raw = localStorage.getItem('formwheel_form');
+      if (!raw) return;
+
+      const data = JSON.parse(raw);
+      if (!data || typeof data !== 'object') return;
+
+      titleEl.value = typeof data.title === 'string' ? data.title : '';
+      descEl.value = typeof data.description === 'string' ? data.description : '';
+
+      if (Array.isArray(data.questions)) {
+        questions = data.questions.map(q => ({
+          text: typeof q.text === 'string' ? q.text : '',
+          type: q.type === 'text' ? 'text' : (q.type === 'checkbox' ? 'checkbox' : 'choice'),
+          choices: Array.isArray(q.choices) ? q.choices.map(v => String(v || '')) : []
+        }));
+
+        if (!questions.length) {
+          questions = [{ text: '', type: 'choice', choices: ['선택지 1', '선택지 2'] }];
+        }
+      }
+    } catch (error) {
+      localStorage.removeItem('formwheel_form');
+    }
+  }
+
+  function generateLink() {
+    save(false);
+
+    const payload = getFormData();
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+    const base = window.location.href.split('#')[0];
+    const link = `${base}#form=${encoded}`;
+
+    generatedLinkEl.value = link;
+    linkModal.classList.add('show');
+    linkModal.setAttribute('aria-hidden', 'false');
+    generatedLinkEl.focus();
+    generatedLinkEl.select();
+  }
+
+  async function copyLink() {
+    const value = generatedLinkEl.value;
+    try {
+      await navigator.clipboard.writeText(value);
+      showToast('링크가 복사됐어요!');
+    } catch (_) {
+      generatedLinkEl.focus();
+      generatedLinkEl.select();
+      document.execCommand('copy');
+      showToast('링크가 복사됐어요!');
+    }
+  }
+
+  function closeModal() {
+    linkModal.classList.remove('show');
+    linkModal.setAttribute('aria-hidden', 'true');
+  }
+
+  function loadFromLink() {
+    const hash = window.location.hash;
+    if (!hash.startsWith('#form=')) return;
+
+    try {
+      const encoded = hash.slice(6);
+      const data = JSON.parse(decodeURIComponent(escape(atob(encoded))));
+
+      if (!data || typeof data !== 'object') return;
+
+      titleEl.value = typeof data.title === 'string' ? data.title : '';
+      descEl.value = typeof data.description === 'string' ? data.description : '';
+
+      if (Array.isArray(data.questions)) {
+        questions = data.questions.map(q => ({
+          text: String(q.text || ''),
+          type: q.type === 'text' ? 'text' : (q.type === 'checkbox' ? 'checkbox' : 'choice'),
+          choices: Array.isArray(q.choices) ? q.choices.map(v => String(v || '')) : []
+        }));
+      }
+
+      localStorage.setItem('formwheel_form', JSON.stringify(getFormData()));
+      showToast('공유된 Form을 불러왔어요!');
+    } catch (_) {
+      showToast('링크 데이터를 읽을 수 없어요.');
+    }
+  }
+
+  $('#addQuestion').addEventListener('click', () => {
+    questions.push({
+      text: '',
+      type: 'choice',
+      choices: ['선택지 1', '선택지 2']
+    });
+
+    renderQuestions();
+    updatePreview();
+
+    requestAnimationFrame(() => {
+      const last = questionsEl.lastElementChild;
+      last?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const input = last?.querySelector('input');
+      input?.focus();
+    });
+
+    showToast('질문이 추가됐어요!');
+  });
+
+  $('#saveBtn').addEventListener('click', () => save(true));
+
+  $('#previewBtn').addEventListener('click', () => {
+    updatePreview();
+    document.querySelector('.preview')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    showToast('미리보기를 업데이트했어요!');
+  });
+
+  $('#linkBtn').addEventListener('click', generateLink);
+  $('#copyLinkBtn').addEventListener('click', copyLink);
+  $('#closeLinkBtn').addEventListener('click', closeModal);
+
+  linkModal.addEventListener('click', (event) => {
+    if (event.target === linkModal) closeModal();
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeModal();
+  });
+
+  titleEl.addEventListener('input', updatePreview);
+  descEl.addEventListener('input', updatePreview);
+
+  load();
+  loadFromLink();
+  renderQuestions();
+  updatePreview();
+})();
+</script>
+</body>
+</html>
