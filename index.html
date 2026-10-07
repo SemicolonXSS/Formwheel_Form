@@ -682,13 +682,16 @@
       return;
     }
 
-    const keys = await storeList('frm:' + formId + ':resp:');
-    const list = [];
-    for (const key of keys) {
-      const value = await storeGet(key);
-      if (value) list.push(value);
-    }
-    list.sort((a, b) => new Date(a.submittedAt || 0) - new Date(b.submittedAt || 0));
+    const prefix='frm:'+formId+':resp:',list=[];let cursor=null;
+    try{
+      while(true){
+        let query=db.ref('data').orderByKey().startAt(cursor||prefix).endAt(prefix+'\uf8ff').limitToFirst(51);
+        const snapshot=await query.once('value'),page=snapshot.val()||{},keys=Object.keys(page).sort().filter(k=>k!==cursor);
+        for(const key of keys)if(page[key])list.push(page[key]);
+        if(keys.length<(cursor?50:51))break;cursor=keys[keys.length-1];
+      }
+    }catch{showEmptyResponses('응답을 불러오지 못했습니다','연결과 조회 권한을 확인해주세요.');return;}
+    list.sort((a,b)=>new Date(a.submittedAt||0)-new Date(b.submittedAt||0));
 
     responsesListEl.replaceChildren();
 
@@ -1072,3 +1075,4 @@
 </script>
 </body>
 </html>
+
