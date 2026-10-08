@@ -1,6 +1,6 @@
 # Formwheel_Form
 
-Formwheel 프로젝트와 게임을 모아 실행하는 홈 화면.
+설문을 만들고 응답을 받을 수 있는 FormWheel 설문 도구.
 
 - 실행: https://semicolonxss.github.io/Formwheel_Form/
 - 프로젝트 목록: https://semicolonxss.github.io/Formwheel/
