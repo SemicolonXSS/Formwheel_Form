@@ -667,7 +667,13 @@
       showToast('이 주관식 질문에 제출된 답변이 아직 없어요.');
       return;
     }
-    openWheelDirectly(entries);
+    // The published form ID points Wheel at the live Firebase response stream.
+    const formId = extractFormId(responsesLookupEl.value.trim());
+    if (!/^[a-z0-9]{6,16}$/i.test(formId)) {
+      showToast('게시한 설문 링크 또는 코드를 먼저 조회해주세요.');
+      return;
+    }
+    window.location.assign(WHEEL_BASE_URL + '#formlive=' + encodeURIComponent(formId + ':' + questionIndex));
   }
 
   function generateWheelLink(index) {
