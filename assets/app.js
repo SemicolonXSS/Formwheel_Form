@@ -359,11 +359,66 @@
     }
   }
 
+  let currentQrUrl = '';
+  const qrCodeEl = $('#qrCode');
+  const qrStatusEl = $('#qrStatus');
+  const qrDownloadBtn = $('#downloadQrBtn');
+
+  function renderShareQr(link) {
+    currentQrUrl = '';
+    qrCodeEl.replaceChildren();
+    qrDownloadBtn.disabled = true;
+    if (!/^https?:\/\//i.test(link)) {
+      qrStatusEl.textContent = 'QR로 공유할 수 없는 링크예요.';
+      return;
+    }
+    if (typeof QRCode === 'undefined') {
+      qrStatusEl.textContent = 'QR 라이브러리를 불러오지 못했어요. 인터넷 연결을 확인해주세요.';
+      return;
+    }
+    try {
+      // The QR is generated locally: the survey URL is not sent to a QR API.
+      new QRCode(qrCodeEl, {
+        text: link, width: 220, height: 220,
+        colorDark: '#171923', colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.L
+      });
+      currentQrUrl = link;
+      qrStatusEl.textContent = '휴대폰 카메라로 스캔해 바로 열 수 있어요.';
+      qrDownloadBtn.disabled = false;
+    } catch (error) {
+      qrCodeEl.replaceChildren();
+      qrStatusEl.textContent = '링크가 너무 길어 QR 코드를 생성할 수 없어요. 링크를 복사해 공유해주세요.';
+    }
+  }
+
+  function downloadShareQr() {
+    if (!currentQrUrl) return;
+    const canvas = qrCodeEl.querySelector('canvas');
+    const img = qrCodeEl.querySelector('img');
+    let url = '';
+    try {
+      if (canvas && canvas.width) url = canvas.toDataURL('image/png');
+      else if (img && img.src) url = img.src;
+      if (!url) throw new Error('QR image missing');
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'formwheel-qr.png';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (_) {
+      qrStatusEl.textContent = '이미지를 저장하지 못했어요. 링크 복사를 이용해주세요.';
+    }
+  }
+  qrDownloadBtn.addEventListener('click', downloadShareQr);
+
   function openShareModal(title, desc, link) {
     linkTitleEl.textContent = title;
     linkDescEl.textContent = desc;
     generatedLinkEl.value = link;
     $('#openLinkBtn').href = link;
+    renderShareQr(link);
     linkModal.classList.add('show');
     linkModal.setAttribute('aria-hidden', 'false');
     generatedLinkEl.focus();
