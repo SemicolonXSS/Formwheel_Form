@@ -631,32 +631,43 @@
   }
 
   // Form → Wheel uses Wheel's actual #w= import format, not the old unsupported #wheel=.
+  // One Wheel entry per unique answer; weight equals the number of submissions.
+  // Wheel's weighted engine supports counts up to 1,000,000.
+  function makeWeightedWheelEntries(rawAnswers, prefix) {
+    const counts = new Map();
+    rawAnswers.forEach(value => {
+      if (typeof value !== 'string') return;
+      const label = value.trim().replace(/\\s+/g, ' ').slice(0, 200);
+      if (!label) return;
+      const key = label.toLocaleLowerCase();
+      const previous = counts.get(key);
+      if (previous) previous.weight = Math.min(1000000, previous.weight + 1);
+      else counts.set(key, { label, weight: 1 });
+    });
+    return Array.from(counts.values()).map((item, index) => ({
+      id: prefix + '-' + index, label: item.label, weight: item.weight
+    }));
+  }
+
+  function openWheelDirectly(entries) {
+    if (!entries.length) {
+      showToast('돌림판에 넣을 항목이 없어요.');
+      return;
+    }
+    const payload = { entries, style: {}, fun: {} };
+    const link = WHEEL_BASE_URL + '#w=' + encodeURIComponent(JSON.stringify(payload));
+    // Navigate in the same tab so mobile pop-up blockers do not interrupt the flow.
+    window.location.assign(link);
+  }
+
   function generateWheelFromResponses(question, questionIndex, responses) {
-    const choices = responses.map(response => response && response.answers && response.answers[questionIndex])
-      .filter(value => typeof value === 'string')
-      .map(value => value.trim())
-      .filter(Boolean);
-    if (!choices.length) {
+    const values = responses.map(response => response && response.answers && response.answers[questionIndex]);
+    const entries = makeWeightedWheelEntries(values, 'form-answer');
+    if (!entries.length) {
       showToast('이 주관식 질문에 제출된 답변이 아직 없어요.');
       return;
     }
-    // Keep repeated answers as separate entries (one entry per response).
-    // Cap URL size so shared links remain usable in common browsers.
-    if (choices.length > 100) {
-      showToast('응답이 100개를 초과해요. 최신 100개로 돌림판을 만들어요.');
-    }
-    const selected = choices.slice(-100).map((label, index) => ({
-      id: 'form-' + index, label: label.slice(0, 200), weight: 1
-    }));
-    const payload = { entries: selected, style: {}, fun: {} };
-    const link = WHEEL_BASE_URL + '#w=' + encodeURIComponent(JSON.stringify(payload));
-    openShareModal(
-      '주관식 응답 돌림판 🎡',
-      '"' + (question.text || ('질문 ' + (questionIndex + 1))) +
-        '"에 실제 제출된 답변 ' + selected.length + '개를 Wheel로 가져와요. ' +
-        'Wheel에서 “불러오기”를 눌러 기존 항목을 덮어쓸지 선택하세요. 동일 답변도 제출 횟수만큼 들어갑니다.',
-      link
-    );
+    openWheelDirectly(entries);
   }
 
   function generateWheelLink(index) {
@@ -667,18 +678,12 @@
       showToast('응답 보기에서 주관식 질문의 “돌림판 생성”을 눌러주세요.');
       return;
     }
-    const choices = (q.choices || []).map(c => String(c || '').trim()).filter(Boolean);
-    if (choices.length < 2) {
-      showToast('돌림판을 만들려면 선택지가 2개 이상 필요해요.');
+    const entries = makeWeightedWheelEntries(q.choices || [], 'form-choice');
+    if (entries.length < 2) {
+      showToast('돌림판을 만들려면 서로 다른 선택지가 2개 이상 필요해요.');
       return;
     }
-    const payload = {
-      entries: choices.map((label, i) => ({ id: 'form-choice-' + i, label: label.slice(0, 200), weight: 1 })),
-      style: {}, fun: {}
-    };
-    const link = WHEEL_BASE_URL + '#w=' + encodeURIComponent(JSON.stringify(payload));
-    openShareModal('돌림판 링크가 생성됐어요 🎡',
-      '선택지 ' + choices.length + '개가 포함됐어요. Wheel에서 불러오기를 누르면 적용됩니다.', link);
+    openWheelDirectly(entries);
   }
 
   async function copyLink() {
