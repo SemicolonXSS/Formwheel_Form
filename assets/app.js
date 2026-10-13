@@ -501,6 +501,19 @@
     count.textContent = `총 ${list.length}개의 응답 — "${formSnapshot.title || '제목 없는 Form'}"`;
     responsesListEl.appendChild(count);
 
+    // Make the wheel from actual published responses, never manually entered sample answers.
+    (formSnapshot.questions || []).forEach((question, questionIndex) => {
+      if (question.type !== 'text') return;
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:8px 0;padding:10px;border:1px solid var(--border, #ddd);border-radius:10px;';
+      const name = document.createElement('span');
+      name.textContent = (questionIndex + 1) + '. ' + (question.text || '주관식 질문');
+      const wheelBtn = makeButton('🎡 응답으로 돌림판 생성', 'btn primary');
+      wheelBtn.addEventListener('click', () => generateWheelFromResponses(question, questionIndex, list));
+      row.append(name, wheelBtn);
+      responsesListEl.appendChild(row);
+    });
+
     list.forEach((response, rIndex) => {
       const box = document.createElement('div');
       box.className = 'question';
@@ -562,51 +575,55 @@
     responsesModal.setAttribute('aria-hidden', 'true');
   }
 
+  // Form → Wheel uses Wheel's actual #w= import format, not the old unsupported #wheel=.
+  function generateWheelFromResponses(question, questionIndex, responses) {
+    const choices = responses.map(response => response && response.answers && response.answers[questionIndex])
+      .filter(value => typeof value === 'string')
+      .map(value => value.trim())
+      .filter(Boolean);
+    if (!choices.length) {
+      showToast('이 주관식 질문에 제출된 답변이 아직 없어요.');
+      return;
+    }
+    // Keep repeated answers as separate entries (one entry per response).
+    // Cap URL size so shared links remain usable in common browsers.
+    if (choices.length > 100) {
+      showToast('응답이 100개를 초과해요. 최신 100개로 돌림판을 만들어요.');
+    }
+    const selected = choices.slice(-100).map((label, index) => ({
+      id: 'form-' + index, label: label.slice(0, 200), weight: 1
+    }));
+    const payload = { entries: selected, style: {}, fun: {} };
+    const link = WHEEL_BASE_URL + '#w=' + encodeURIComponent(JSON.stringify(payload));
+    openShareModal(
+      '주관식 응답 돌림판 🎡',
+      '"' + (question.text || ('질문 ' + (questionIndex + 1))) +
+        '"에 실제 제출된 답변 ' + selected.length + '개를 Wheel로 가져와요. ' +
+        'Wheel에서 “불러오기”를 눌러 기존 항목을 덮어쓸지 선택하세요. 동일 답변도 제출 횟수만큼 들어갑니다.',
+      link
+    );
+  }
+
   function generateWheelLink(index) {
     const q = questions[index];
     if (!q) return;
-
-    let choices;
-
     if (q.type === 'text') {
-      const existing = Array.isArray(q.wheelAnswers) ? q.wheelAnswers.join('\n') : '';
-      const input = window.prompt(
-        '이 질문에 대해 나올 수 있는 답변들을 한 줄에 하나씩 입력하세요.\n(쉼표로 구분해도 됩니다)',
-        existing
-      );
-      if (input === null) return;
-
-      choices = input
-        .split(/\r?\n|,/)
-        .map(c => c.trim())
-        .filter(Boolean);
-
-      if (choices.length < 2) {
-        showToast('돌림판을 만들려면 답변이 2개 이상 필요해요.');
-        return;
-      }
-
-      q.wheelAnswers = choices;
-    } else {
-      choices = (q.choices || []).map(c => String(c || '').trim()).filter(Boolean);
-      if (choices.length < 2) {
-        showToast('돌림판을 만들려면 선택지가 2개 이상 필요해요.');
-        return;
-      }
+      showResponses();
+      showToast('응답 보기에서 주관식 질문의 “돌림판 생성”을 눌러주세요.');
+      return;
     }
-
+    const choices = (q.choices || []).map(c => String(c || '').trim()).filter(Boolean);
+    if (choices.length < 2) {
+      showToast('돌림판을 만들려면 선택지가 2개 이상 필요해요.');
+      return;
+    }
     const payload = {
-      title: q.text.trim() || `질문 ${index + 1}`,
-      choices
+      entries: choices.map((label, i) => ({ id: 'form-choice-' + i, label: label.slice(0, 200), weight: 1 })),
+      style: {}, fun: {}
     };
-    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
-    const link = `${WHEEL_BASE_URL}#wheel=${encoded}`;
-
-    openShareModal(
-      '돌림판 링크가 생성됐어요 🎡',
-      `"${payload.title}" 질문의 답변으로 만든 돌림판 링크예요. 아래 링크를 복사해서 공유하세요.`,
-      link
-    );
+    const link = WHEEL_BASE_URL + '#w=' + encodeURIComponent(JSON.stringify(payload));
+    openShareModal('돌림판 링크가 생성됐어요 🎡',
+      '선택지 ' + choices.length + '개가 포함됐어요. Wheel에서 불러오기를 누르면 적용됩니다.', link);
   }
 
   async function copyLink() {
