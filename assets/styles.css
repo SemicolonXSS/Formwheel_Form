@@ -88,3 +88,12 @@
     .card{padding:16px;border-radius:17px}
     .type-row{grid-template-columns:1fr}
   }
+
+/* Share QR */
+.qr-panel{margin-top:16px;padding:17px;border:1px solid var(--line);border-radius:15px;text-align:center;background:#fafafd}
+.qr-panel h4{margin:0 0 12px;font-size:15px}
+.qr-code{display:flex;align-items:center;justify-content:center;min-height:180px}
+.qr-code canvas,.qr-code img{display:block;margin:auto;max-width:100%;image-rendering:pixelated}
+.qr-panel p{margin:9px 0 13px;font-size:12px}
+.modal-card:has(.qr-panel){max-height:min(90vh,850px);overflow-y:auto}
+@media(max-width:520px){.modal-actions{flex-wrap:wrap}.qr-panel{padding:12px}}
