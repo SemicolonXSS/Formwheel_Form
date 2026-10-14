@@ -97,3 +97,24 @@
 .qr-panel p{margin:9px 0 13px;font-size:12px}
 .modal-card:has(.qr-panel){max-height:min(90vh,850px);overflow-y:auto}
 @media(max-width:520px){.modal-actions{flex-wrap:wrap}.qr-panel{padding:12px}}
+
+/* Accessibility and mobile usability: 2026-10-14 */
+:where(button,a,input,textarea,select):focus-visible{
+  outline:3px solid #3146c9;
+  outline-offset:3px;
+}
+:where(button,a){-webkit-tap-highlight-color:rgba(49,70,201,.15)}
+@media (pointer:coarse){
+  .btn,.question button,.modal-actions button{min-height:44px}
+  input[type="checkbox"],input[type="radio"]{min-width:20px;min-height:20px}
+}
+@media (max-width:520px){
+  .topbar-inner{align-items:flex-start;flex-wrap:wrap}
+  .actions{width:100%;flex-wrap:wrap}
+  .actions .btn{flex:1 1 auto;min-height:44px}
+  .question{overflow-wrap:anywhere}
+  .modal-card{max-width:calc(100vw - 24px)}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+}
