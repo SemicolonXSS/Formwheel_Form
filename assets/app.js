@@ -160,7 +160,7 @@
       typeRow.className = 'type-row';
 
       const qInput = document.createElement('input');
-      qInput.type = 'text';
+      qInput.type = 'text';qInput.setAttribute('aria-label', (index+1)+'번 질문');
       qInput.maxLength = 300;
       qInput.placeholder = '질문을 입력하세요';
       qInput.value = q.text || '';
@@ -169,7 +169,7 @@
         updatePreview();
       });
 
-      const select = document.createElement('select');
+      const select = document.createElement('select');select.setAttribute('aria-label',(index+1)+'번 질문 유형');
       [
         ['choice', '객관식'],
         ['checkbox', '체크박스'],
@@ -209,7 +209,7 @@
 
           const input = document.createElement('input');
           input.type = 'text';
-          input.maxLength = 200;
+          input.maxLength = 200;input.setAttribute('aria-label',(index+1)+'번 질문의 '+(cIndex+1)+'번 선택지');
           input.value = choice || '';
           input.addEventListener('input', (event) => {
             questions[index].choices[cIndex] = event.target.value;

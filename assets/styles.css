@@ -1,5 +1,5 @@
 :root{
-    --bg:#f6f7fb; --card:#fff; --text:#171923; --muted:#707586;
+    --bg:#f6f7fb; --card:#fff; --text:#171923; --muted:#626878;
     --line:#e7e9ef; --accent:#5b5cf0; --accent2:#7c3aed;
     --danger:#e5484d; --shadow:0 12px 35px rgba(26,31,56,.08);
     --radius:20px;
@@ -17,7 +17,7 @@
   .btn{border:1px solid var(--line);background:#fff;color:var(--text);padding:10px 14px;border-radius:12px;font-weight:700}
   .btn:hover{background:#f7f7fb}
   .btn.primary{border-color:transparent;background:var(--accent);color:#fff}
-  .btn.publish{background:#0f9d58;box-shadow:0 6px 16px rgba(15,157,88,.28)}
+  .btn.publish{background:#08783f;box-shadow:0 6px 16px rgba(15,157,88,.28)}
   .btn.publish:hover{background:#0c8043}
   .btn.danger{color:var(--danger)}
   .btn:disabled{opacity:.55;cursor:default}
@@ -39,7 +39,7 @@
   .drag{color:#a1a5b3;font-size:18px;user-select:none}
   .qnum{width:28px;height:28px;border-radius:9px;background:#eef0ff;color:var(--accent);display:grid;place-items:center;font-size:12px;font-weight:900}
   .qactions{margin-left:auto;display:flex;gap:5px}
-  .iconbtn{border:0;background:transparent;color:#858999;padding:7px;border-radius:9px}
+  .iconbtn{border:0;background:transparent;color:#626878;padding:7px;border-radius:9px}
   .iconbtn:hover{background:#f1f2f7;color:var(--text)}
   .row{display:flex;gap:9px;align-items:center}
   .row input{flex:1}
